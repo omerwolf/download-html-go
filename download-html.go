@@ -12,6 +12,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	createDir("html_files")
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		fmt.Println(scanner.Text())
@@ -20,4 +21,12 @@ func main() {
 		log.Fatal(err)
 	}
 	file.Close()
+}
+
+func createDir(dir string) {
+	err := os.MkdirAll(dir, os.ModePerm)
+	if err != nil {
+		fmt.Println("Error creating output directory:", err)
+		return
+	}
 }
