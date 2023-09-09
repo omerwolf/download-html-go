@@ -1,15 +1,23 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
-	"io/ioutil"
+	"log"
+	"os"
 )
 
 func main() {
-	content, err := ioutil.ReadFile("ListOfAsciiSiteUrl.txt")
+	file, err := os.Open("ListOfAsciiSiteUrl.txt")
 	if err != nil {
-		fmt.Println("Error reading file")
-		return
+		log.Fatal(err)
 	}
-	fmt.Println(string(content))
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		fmt.Println(scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
+	}
+	file.Close()
 }
