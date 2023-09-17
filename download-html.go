@@ -5,22 +5,30 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+)
+
+const (
+	inputFile = "ListOfAsciiSiteUrl.txt"
+	outputDir = "html_files"
 )
 
 func main() {
-	file, err := os.Open("ListOfAsciiSiteUrl.txt")
+	urlsFile, err := os.Open(inputFile)
 	if err != nil {
 		log.Fatal(err)
 	}
-	createDir("html_files")
-	scanner := bufio.NewScanner(file)
+	createDir(outputDir)
+
+	scanner := bufio.NewScanner(urlsFile)
 	for scanner.Scan() {
-		fmt.Println(scanner.Text())
+		url := scanner.Text()
+		createFile(url)
 	}
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
-	file.Close()
+	urlsFile.Close()
 }
 
 func createDir(dir string) {
@@ -29,4 +37,13 @@ func createDir(dir string) {
 		fmt.Println("Error creating output directory:", err)
 		return
 	}
+}
+func createFile(url string) {
+	filename := filepath.Join(outputDir, filepath.Base(url))
+	outputFile, err := os.Create(filename)
+	if err != nil {
+		fmt.Printf("Error creating output file %s: %s\n", filename, err)
+		return
+	}
+	defer outputFile.Close()
 }
