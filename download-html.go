@@ -3,7 +3,9 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 )
@@ -23,12 +25,15 @@ func main() {
 	scanner := bufio.NewScanner(urlsFile)
 	for scanner.Scan() {
 		url := scanner.Text()
-		createFile(url)
+		downloadHTML(url, outputDir)
 	}
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
-	urlsFile.Close()
+	err = urlsFile.Close()
+	if err != nil {
+		return
+	}
 }
 
 func createDir(dir string) {
@@ -38,12 +43,38 @@ func createDir(dir string) {
 		return
 	}
 }
-func createFile(url string) {
+
+func downloadHTML(url, outputDir string) {
+	response, err := http.Get(url)
+	if err != nil {
+		fmt.Printf("Error downloading %s: %s\n", url, err)
+		return
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			return
+		}
+	}(response.Body)
+
 	filename := filepath.Join(outputDir, filepath.Base(url))
 	outputFile, err := os.Create(filename)
 	if err != nil {
 		fmt.Printf("Error creating output file %s: %s\n", filename, err)
 		return
 	}
-	defer outputFile.Close()
+	defer func(outputFile *os.File) {
+		err := outputFile.Close()
+		if err != nil {
+			return
+		}
+	}(outputFile)
+
+	_, err = io.Copy(outputFile, response.Body)
+	if err != nil {
+		fmt.Printf("Error writing to output file %s: %s\n", filename, err)
+		return
+	}
+
+	fmt.Printf("Downloaded %s to %s\n", url, filename)
 }
