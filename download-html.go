@@ -8,11 +8,14 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 )
 
 const (
-	inputFile = "ListOfAsciiSiteUrl.txt"
-	outputDir = "html_files"
+	inputFile  = "ListOfAsciiSiteUrl.txt"
+	outputDir  = "html_files"
+	numWorkers = 5
+	bufferSize = 10
 )
 
 func main() {
@@ -20,27 +23,37 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer urlsFile.Close()
+
 	createDir(outputDir)
+
+	urls := make(chan string, bufferSize)
+	var wg sync.WaitGroup
+
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for url := range urls {
+				downloadHTML(url, outputDir)
+			}
+		}()
+	}
 
 	scanner := bufio.NewScanner(urlsFile)
 	for scanner.Scan() {
 		url := scanner.Text()
-		downloadHTML(url, outputDir)
+		urls <- url
 	}
-	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
-	}
-	err = urlsFile.Close()
-	if err != nil {
-		return
-	}
+	close(urls)
+
+	wg.Wait()
 }
 
 func createDir(dir string) {
 	err := os.MkdirAll(dir, os.ModePerm)
 	if err != nil {
 		fmt.Println("Error creating output directory:", err)
-		return
 	}
 }
 
@@ -50,12 +63,7 @@ func downloadHTML(url, outputDir string) {
 		fmt.Printf("Error downloading %s: %s\n", url, err)
 		return
 	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			return
-		}
-	}(response.Body)
+	defer response.Body.Close()
 
 	filename := filepath.Join(outputDir, filepath.Base(url))
 	outputFile, err := os.Create(filename)
@@ -63,12 +71,7 @@ func downloadHTML(url, outputDir string) {
 		fmt.Printf("Error creating output file %s: %s\n", filename, err)
 		return
 	}
-	defer func(outputFile *os.File) {
-		err := outputFile.Close()
-		if err != nil {
-			return
-		}
-	}(outputFile)
+	defer outputFile.Close()
 
 	_, err = io.Copy(outputFile, response.Body)
 	if err != nil {
